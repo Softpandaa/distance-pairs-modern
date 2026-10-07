@@ -4,12 +4,12 @@ import pandas as pd
 import statsmodels.api as sm
 from scipy.stats import norm
 
-from config import DAYS, DISTANCES, SCORES
+from config import TRADING_DAYS
+from formation import PORTFOLIOS
 
 
 def nw_t(x: pd.Series) -> float:
-    """Newey-West t of the mean of x: Bartlett kernel, lag floor(4 (T/100)^(2/9)),
-    no small-sample correction."""
+    """Newey-West t of mean(x), Bartlett lag floor(4 (T/100)^(2/9)), no small-sample correction."""
     lags = int(4 * (len(x) / 100) ** (2 / 9))
     fit = sm.OLS(x.to_numpy(), np.ones(len(x))).fit(cov_type="HAC", cov_kwds={"maxlags": lags})
     return fit.tvalues[0]
@@ -20,7 +20,8 @@ def _differences(d: pd.DataFrame) -> pd.DataFrame:
     rows = []
     for c in d:
         t = nw_t(d[c])
-        rows.append({"diff %": 100 * DAYS * d[c].mean(), "t": t, "p": 2 * norm.sf(abs(t))})
+        rows.append({"diff %": 100 * TRADING_DAYS * d[c].mean(), "t": t,
+                     "p": 2 * norm.sf(abs(t))})
     return pd.DataFrame(rows, index=d.columns)
 
 
@@ -30,8 +31,10 @@ def performance(returns: pd.DataFrame) -> pd.DataFrame:
     for c in returns:
         r = returns[c]
         t = nw_t(r)
-        rows.append({"mean %": 100 * DAYS * r.mean(), "vol %": 100 * np.sqrt(DAYS) * r.std(),
-                     "Sharpe": np.sqrt(DAYS) * r.mean() / r.std(), "t": t, "p": norm.sf(t)})
+        rows.append({"mean %": 100 * TRADING_DAYS * r.mean(),
+                     "vol %": 100 * np.sqrt(TRADING_DAYS) * r.std(),
+                     "Sharpe": np.sqrt(TRADING_DAYS) * r.mean() / r.std(),
+                     "t": t, "p": norm.sf(t)})
     return pd.DataFrame(rows, index=returns.columns)
 
 
@@ -47,14 +50,12 @@ def h3(returns: pd.DataFrame) -> pd.DataFrame:
 
 
 def mechanism(sel: pd.DataFrame, trades: pd.DataFrame) -> pd.DataFrame:
-    """Mean formation sigma and NZC, trades per selected pair, share of trades converged (%)
-    and mean net profit per trade (%) overall, if converged and if forced, per portfolio."""
-    s, tr = sel.groupby(["q", "score"]), trades.groupby(["q", "score"])
-    by = trades.groupby(["q", "score", "converged"])["profit"].mean().unstack()
-    idx = pd.MultiIndex.from_product([DISTANCES, SCORES], names=["q", "score"])
-    return pd.DataFrame({"sigma": s["sigma"].mean(), "NZC": s["NZC"].mean(),
-                         "trades/pair": tr.size() / s.size(),
-                         "converged %": 100 * tr["converged"].mean(),
-                         "profit %": 100 * tr["profit"].mean(),
-                         "converged profit %": 100 * by[True],
-                         "forced profit %": 100 * by[False]}, index=idx)
+    """Formation sigma and NZC, trades per pair, converged share and profit per trade (%)."""
+    pairs, traded = sel.groupby(["q", "score"]), trades.groupby(["q", "score"])
+    by_outcome = trades.groupby(["q", "score", "converged"])["profit"].mean().unstack()
+    return pd.DataFrame({"sigma": pairs["sigma"].mean(), "NZC": pairs["NZC"].mean(),
+                         "trades/pair": traded.size() / pairs.size(),
+                         "converged %": 100 * traded["converged"].mean(),
+                         "profit %": 100 * traded["profit"].mean(),
+                         "converged profit %": 100 * by_outcome[True],
+                         "forced profit %": 100 * by_outcome[False]}, index=PORTFOLIOS)

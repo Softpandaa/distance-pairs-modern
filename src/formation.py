@@ -4,8 +4,10 @@ from itertools import combinations
 import numpy as np
 import pandas as pd
 
-from config import (DISTANCES, FIRST_TRADE, FORMATION_MONTHS, N_PAIRS,
-                    N_PERIODS, SCORES, TRADING_MONTHS, WEIGHTS)
+from config import (COMPOSITE_WEIGHTS, DISTANCES, FIRST_TRADE, FORMATION_MONTHS, N_PAIRS,
+                    N_PERIODS, SCORES, TRADING_MONTHS)
+
+PORTFOLIOS = pd.MultiIndex.from_product([DISTANCES, SCORES], names=["q", "score"])
 
 
 def periods(dates: pd.DatetimeIndex) -> list[tuple[pd.DatetimeIndex, pd.DatetimeIndex]]:
@@ -19,11 +21,8 @@ def periods(dates: pd.DatetimeIndex) -> list[tuple[pd.DatetimeIndex, pd.Datetime
     return out
 
 
-def statistics(px: pd.DataFrame, sectors: pd.Series) -> pd.DataFrame:
-    """sigma, NZC and the three distances of every eligible within-sector pair over Phi_k.
-
-    A stock is eligible when its price record over Phi_k is complete.
-    """
+def pair_statistics(px: pd.DataFrame, sectors: pd.Series) -> pd.DataFrame:
+    """sigma, NZC and distances of each within-sector pair with complete prices over Phi_k."""
     px = px.dropna(axis=1)
     p = px / px.iloc[0]
     rows = []
@@ -49,8 +48,9 @@ def select(pair_stats: pd.DataFrame, q: str, score: str) -> pd.DataFrame:
     if score == "distance":
         key = -pair_stats[q]
     else:
-        key = (WEIGHTS[0] * _minmax(1 / pair_stats[q]) + WEIGHTS[1] * _minmax(pair_stats["NZC"])
-               + WEIGHTS[2] * _minmax(pair_stats["sigma"]))
+        w_d, w_z, w_sigma = COMPOSITE_WEIGHTS
+        key = (w_d * _minmax(1 / pair_stats[q]) + w_z * _minmax(pair_stats["NZC"])
+               + w_sigma * _minmax(pair_stats["sigma"]))
     return pair_stats.loc[key.nlargest(N_PAIRS).index]
 
 
@@ -58,7 +58,7 @@ def formation(px: pd.DataFrame, sectors: pd.Series) -> pd.DataFrame:
     """The selected pairs of all six portfolios in every period."""
     chosen = []
     for k, (phi, _) in enumerate(periods(px.index)):
-        pair_stats = statistics(px.loc[phi], sectors)
+        pair_stats = pair_statistics(px.loc[phi], sectors)
         for q in DISTANCES:
             for score in SCORES:
                 chosen.append(select(pair_stats, q, score).assign(k=k, q=q, score=score))

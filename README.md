@@ -12,6 +12,7 @@ The distance approach does not survive in the modern era. No portfolio earns a s
 data/     committed input prices and sectors
 src/      analysis modules, every parameter declared once in config.py
 report.pdf
+slides.pdf
 ```
 
 ## Data
