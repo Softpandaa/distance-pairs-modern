@@ -15,6 +15,8 @@ report.pdf
 slides.pdf
 ```
 
+The report and slides are distributed as compiled PDFs. Their typesetting source is not included.
+
 ## Data
 
 `data/prices.csv.gz` holds the daily adjusted closing prices of 189 US large-cap stocks from Yahoo Finance. `data/sectors.csv` holds the sector of each stock.
