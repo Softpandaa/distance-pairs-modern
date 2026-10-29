@@ -3,3 +3,4 @@ latex/
 __pycache__/
 *.pyc
 .venv/
+slides.pdf

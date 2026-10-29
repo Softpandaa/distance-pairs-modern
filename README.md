@@ -12,10 +12,9 @@ The distance approach does not survive in the modern era. No portfolio earns a s
 data/     committed input prices and sectors
 src/      analysis modules, every parameter declared once in config.py
 report.pdf
-slides.pdf
 ```
 
-The report and slides are distributed as compiled PDFs. Their typesetting source is not included.
+The report is distributed as a compiled PDF. Its typesetting source is not included.
 
 ## Data
 
